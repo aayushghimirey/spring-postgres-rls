@@ -11,6 +11,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import javax.sql.DataSource;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Configuration
 @ConditionalOnProperty(
@@ -29,8 +31,12 @@ public class RlsAutoConfiguration {
             DataSource dataSource,
             RlsProperties properties) {
 
+        List<CoreRlsConfig.CoreTableConfig> tableConfigs = properties.getTables().stream()
+                .map(tableConfig -> new CoreRlsConfig.CoreTableConfig(tableConfig.getName(), tableConfig.getPolicies()))
+                .collect(Collectors.toList());
+
         CoreRlsConfig coreRlsConfig = new CoreRlsConfig(
-                properties.getTables(),
+                tableConfigs,
                 properties.getValidationMode()
         );
 

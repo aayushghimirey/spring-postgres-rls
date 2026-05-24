@@ -1,34 +1,22 @@
 package io.github.aayushghimirey.spring_postgres_rls.impl;
 
- import io.github.aayushghimirey.spring_postgres_rls.core.ValidationMode;
- import org.springframework.boot.context.properties.ConfigurationProperties;
+import io.github.aayushghimirey.spring_postgres_rls.core.ValidationMode;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 
- import java.util.ArrayList;
- import java.util.List;
+import java.util.ArrayList;
+import java.util.List;
 
 @ConfigurationProperties(prefix = "spring.rls")
 public class RlsProperties {
 
     private boolean enabled = true;
-
-    private List<String> tables =
-            new ArrayList<>();
-
     private ValidationMode validationMode = ValidationMode.PERMISSIVE;
 
-    public boolean isEnabled() {
-        return enabled;
-    }
-
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
-
-    public List<String> getTables() {
+    public List<TableConfig> getTables() {
         return tables;
     }
 
-    public void setTables(List<String> tables) {
+    public void setTables(List<TableConfig> tables) {
         this.tables = tables;
     }
 
@@ -38,5 +26,37 @@ public class RlsProperties {
 
     public void setValidationMode(ValidationMode validationMode) {
         this.validationMode = validationMode;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    private List<TableConfig> tables = new ArrayList<>();
+
+
+    public class TableConfig {
+       private String name;
+       private List<String> policies;
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        public List<String> getPolicies() {
+            return policies;
+        }
+
+        public void setPolicies(List<String> policies) {
+            this.policies = policies;
+        }
     }
 }

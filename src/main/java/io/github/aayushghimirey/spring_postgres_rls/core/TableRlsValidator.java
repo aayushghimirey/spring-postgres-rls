@@ -11,6 +11,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public class TableRlsValidator {
 
@@ -43,62 +45,39 @@ public class TableRlsValidator {
             return;
         }
 
-        List<String> tables =
-                coreRlsConfig.getTables();
+
 
         try (Connection connection = dataSource.getConnection();
-                PreparedStatement ps =
-                     connection.prepareStatement(VALIDATION_QUERY)) {
+             PreparedStatement ps = connection.prepareStatement(VALIDATION_QUERY)) {
 
-            for (String table : tables) {
+            for (CoreRlsConfig.CoreTableConfig tableConfig: coreRlsConfig.getTables())  {
+                String tableName = tableConfig.getName();
+                List<String> policies = tableConfig.getPolicies();
 
-                ps.setString(1, table);
+                ps.setString(1, tableName);
 
-                try (ResultSet rs = ps.executeQuery()) {
-
-                    if (!rs.next()) {
-
+                try(ResultSet resultSet = ps.executeQuery()) {
+                    if(!resultSet.next()){
                         handleFailure(
                                 validationMode,
-                                new TableNotFoundException(
-                                        "Table "
-                                                + table
-                                                + " does not exist"
-                                )
+                                new TableNotFoundException("Table" + tableName + "does not exits")
                         );
+                     }
 
-                        continue;
-                    }
+                    boolean enabled = resultSet.getBoolean(1);
 
-                    boolean enabled =
-                            rs.getBoolean("relrowsecurity");
-
-                    if (!enabled) {
-
+                    if(!enabled) {
                         handleFailure(
                                 validationMode,
-                                new RlsNotEnabledException(
-                                        "RLS not enabled for table: "
-                                                + table
-                                )
+                                new RlsNotEnabledException("RLS not enabled for table " + tableName)
                         );
-
-                        continue;
                     }
-
-                    LOGGER.info(
-                            "Validated RLS for table: "
-                                    + table
-                    );
+                    LOGGER.debug("Validated RLS for table: {}", tableName);
                 }
             }
 
-        } catch (SQLException ex) {
-
-            throw new RuntimeException(
-                    "Failed to validate RLS tables",
-                    ex
-            );
+        }catch (SQLException e) {
+            throw new RuntimeException("Failed to validate RLS tables", e);
         }
     }
 
