@@ -12,6 +12,7 @@ public class CoreRlsConfig {
         this.tables = tables;
         this.validationMode = validationMode;
     }
+    public CoreRlsConfig() {}
 
     public void setTables(List<CoreTableConfig> tables) {
         this.tables = tables;

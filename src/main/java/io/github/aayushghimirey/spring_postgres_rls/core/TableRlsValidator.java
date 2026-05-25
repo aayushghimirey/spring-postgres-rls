@@ -11,8 +11,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 public class TableRlsValidator {
 
@@ -20,13 +18,14 @@ public class TableRlsValidator {
             LoggerFactory.getLogger(TableRlsValidator.class);
 
     private static final String VALIDATION_QUERY = """
-        SELECT relrowsecurity
-        FROM pg_class
-        WHERE relname = ?
-        """;
+            SELECT relrowsecurity
+            FROM pg_class
+            WHERE relname = ?
+            """;
 
     private final DataSource dataSource;
     private final CoreRlsConfig coreRlsConfig;
+
 
     public TableRlsValidator(
             DataSource dataSource,
@@ -36,7 +35,6 @@ public class TableRlsValidator {
     }
 
     public void validate() {
-
         ValidationMode validationMode =
                 coreRlsConfig.getValidationMode();
 
@@ -45,38 +43,38 @@ public class TableRlsValidator {
             return;
         }
 
-
-
         try (Connection connection = dataSource.getConnection();
-             PreparedStatement ps = connection.prepareStatement(VALIDATION_QUERY)) {
+             PreparedStatement psRls = connection.prepareStatement(VALIDATION_QUERY)) {
 
-            for (CoreRlsConfig.CoreTableConfig tableConfig: coreRlsConfig.getTables())  {
+            for (CoreRlsConfig.CoreTableConfig tableConfig : coreRlsConfig.getTables()) {
                 String tableName = tableConfig.getName();
-                List<String> policies = tableConfig.getPolicies();
+                List<String> expectedPolicies = tableConfig.getPolicies();
 
-                ps.setString(1, tableName);
-
-                try(ResultSet resultSet = ps.executeQuery()) {
-                    if(!resultSet.next()){
+                // 1. Verify table exists and RLS status
+                psRls.setString(1, tableName);
+                try (ResultSet rsRls = psRls.executeQuery()) {
+                    if (!rsRls.next()) {
                         handleFailure(
                                 validationMode,
-                                new TableNotFoundException("Table" + tableName + "does not exits")
+                                new TableNotFoundException("Table '" + tableName + "' does not exist")
                         );
-                     }
+                        continue;
+                    }
 
-                    boolean enabled = resultSet.getBoolean(1);
-
-                    if(!enabled) {
+                    boolean enabled = rsRls.getBoolean(1);
+                    if (!enabled) {
                         handleFailure(
                                 validationMode,
-                                new RlsNotEnabledException("RLS not enabled for table " + tableName)
+                                new RlsNotEnabledException("RLS not enabled for table '" + tableName + "'")
                         );
                     }
-                    LOGGER.debug("Validated RLS for table: {}", tableName);
                 }
+
+
+                LOGGER.debug("Validated RLS for table: {}", tableName);
             }
 
-        }catch (SQLException e) {
+        } catch (SQLException e) {
             throw new RuntimeException("Failed to validate RLS tables", e);
         }
     }
@@ -86,12 +84,8 @@ public class TableRlsValidator {
             RuntimeException exception) {
 
         switch (validationMode) {
-
             case STRICT -> throw exception;
-
-            case PERMISSIVE ->
-                    LOGGER.warn(exception.getMessage());
-
+            case PERMISSIVE -> LOGGER.warn(exception.getMessage());
             case NONE -> {
                 // no-op
             }
