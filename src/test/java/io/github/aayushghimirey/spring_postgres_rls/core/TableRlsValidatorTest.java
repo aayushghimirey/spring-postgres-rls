@@ -1,6 +1,7 @@
 package io.github.aayushghimirey.spring_postgres_rls.core;
  
 import io.github.aayushghimirey.spring_postgres_rls.exception.RlsNotEnabledException;
+import io.github.aayushghimirey.spring_postgres_rls.exception.RlsPolicyNotFoundException;
 import io.github.aayushghimirey.spring_postgres_rls.exception.TableNotFoundException;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -36,12 +37,21 @@ class TableRlsValidatorTest {
                 postgres.getPassword())) {
  
             try (Statement stmt = conn.createStatement()) {
-                // 1. Create table with RLS enabled
+                // 1. Create table with RLS enabled and policies
                 stmt.execute("CREATE TABLE tenants (id INT PRIMARY KEY, name VARCHAR(100))");
                 stmt.execute("ALTER TABLE tenants ENABLE ROW LEVEL SECURITY");
+                stmt.execute("""
+                 CREATE POLICY tenant_policy ON tenants FOR ALL 
+                        USING(id = current_setting('app.tenant_id', true)::int)
+                        WITH CHECK(id = current_setting('app.tenant_id', true)::int)
+                        """);
 
                 // 2. Create table with RLS disabled
                 stmt.execute("CREATE TABLE employees (id INT PRIMARY KEY, name VARCHAR(100))");
+
+                // 3. Create table with RLS enabled but no policies
+                stmt.execute("CREATE TABLE departments (id INT PRIMARY KEY, name VARCHAR(100))");
+                stmt.execute("ALTER TABLE departments ENABLE ROW LEVEL SECURITY");
             }
         }
     }
@@ -81,8 +91,22 @@ class TableRlsValidatorTest {
         };
     }
  
-    @Test
+    @Test // without policies
     void testStrictValidationSuccess() {
+        DataSource dataSource = createDataSource();
+        CoreRlsConfig.CoreTableConfig tableConfig = new CoreRlsConfig.CoreTableConfig(
+                "tenants",
+                List.of("tenant_policy")
+        );
+        CoreRlsConfig config = new CoreRlsConfig(List.of(tableConfig), ValidationMode.STRICT);
+        TableRlsValidator validator = new TableRlsValidator(dataSource, config);
+ 
+        assertDoesNotThrow(validator::validate);
+    }
+
+
+    @Test
+    void testStrictValidationSuccessWithPolicies() {
         DataSource dataSource = createDataSource();
         CoreRlsConfig.CoreTableConfig tableConfig = new CoreRlsConfig.CoreTableConfig(
                 "tenants",
@@ -90,10 +114,10 @@ class TableRlsValidatorTest {
         );
         CoreRlsConfig config = new CoreRlsConfig(List.of(tableConfig), ValidationMode.STRICT);
         TableRlsValidator validator = new TableRlsValidator(dataSource, config);
- 
+
         assertDoesNotThrow(validator::validate);
     }
- 
+
     @Test
     void testStrictValidationRlsDisabled() {
         DataSource dataSource = createDataSource();
@@ -119,6 +143,20 @@ class TableRlsValidatorTest {
  
         assertThrows(TableNotFoundException.class, validator::validate);
     }
+
+    @Test
+    void testStrictValidationPolicyNotFound() {
+        DataSource dataSource = createDataSource();
+        CoreRlsConfig.CoreTableConfig tableConfig = new CoreRlsConfig.CoreTableConfig(
+                "tenants",
+                List.of("non_existent_policy")
+        );
+        CoreRlsConfig config = new CoreRlsConfig(List.of(tableConfig), ValidationMode.STRICT);
+        TableRlsValidator validator = new TableRlsValidator(dataSource, config);
+
+        assertThrows(RlsPolicyNotFoundException.class, validator::validate);
+    }
+
 
  
     @Test
@@ -146,4 +184,7 @@ class TableRlsValidatorTest {
  
         assertDoesNotThrow(validator::validate);
     }
+
+
+
 }

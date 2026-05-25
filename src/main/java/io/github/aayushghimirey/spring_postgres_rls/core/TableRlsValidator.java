@@ -1,6 +1,7 @@
 package io.github.aayushghimirey.spring_postgres_rls.core;
 
 import io.github.aayushghimirey.spring_postgres_rls.exception.RlsNotEnabledException;
+import io.github.aayushghimirey.spring_postgres_rls.exception.RlsPolicyNotFoundException;
 import io.github.aayushghimirey.spring_postgres_rls.exception.TableNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,11 +18,18 @@ public class TableRlsValidator {
     private static final Logger LOGGER =
             LoggerFactory.getLogger(TableRlsValidator.class);
 
-    private static final String VALIDATION_QUERY = """
+    private static final String VALIDATION_QUERY_FOR_RLS_ENABLED = """
             SELECT relrowsecurity
             FROM pg_class
             WHERE relname = ?
             """;
+
+    private static final String VALIDATION_QUERY_FOR_POLICIES = """
+            SELECT policyname
+            FROM pg_policies
+            WHERE tablename = ?
+            """;
+
 
     private final DataSource dataSource;
     private final CoreRlsConfig coreRlsConfig;
@@ -35,47 +43,82 @@ public class TableRlsValidator {
     }
 
     public void validate() {
-        ValidationMode validationMode =
-                coreRlsConfig.getValidationMode();
 
-        if (validationMode == ValidationMode.NONE) {
+        ValidationMode mode = coreRlsConfig.getValidationMode();
+
+        if (mode == ValidationMode.NONE) {
             LOGGER.info("RLS validation disabled");
             return;
         }
 
-        try (Connection connection = dataSource.getConnection();
-             PreparedStatement psRls = connection.prepareStatement(VALIDATION_QUERY)) {
+        try (Connection conn = dataSource.getConnection()) {
 
-            for (CoreRlsConfig.CoreTableConfig tableConfig : coreRlsConfig.getTables()) {
-                String tableName = tableConfig.getName();
-                List<String> expectedPolicies = tableConfig.getPolicies();
+            for (CoreRlsConfig.CoreTableConfig table : coreRlsConfig.getTables()) {
 
-                // 1. Verify table exists and RLS status
-                psRls.setString(1, tableName);
-                try (ResultSet rsRls = psRls.executeQuery()) {
-                    if (!rsRls.next()) {
-                        handleFailure(
-                                validationMode,
-                                new TableNotFoundException("Table '" + tableName + "' does not exist")
-                        );
-                        continue;
-                    }
-
-                    boolean enabled = rsRls.getBoolean(1);
-                    if (!enabled) {
-                        handleFailure(
-                                validationMode,
-                                new RlsNotEnabledException("RLS not enabled for table '" + tableName + "'")
-                        );
-                    }
-                }
-
-
-                LOGGER.debug("Validated RLS for table: {}", tableName);
+                validateTable(conn, table, mode);
             }
 
         } catch (SQLException e) {
-            throw new RuntimeException("Failed to validate RLS tables", e);
+            throw new RuntimeException("Failed to validate RLS", e);
+        }
+    }
+
+    private void validateTable(Connection conn,
+                               CoreRlsConfig.CoreTableConfig table,
+                               ValidationMode mode) throws SQLException {
+
+        try (PreparedStatement ps = conn.prepareStatement(VALIDATION_QUERY_FOR_RLS_ENABLED)) {
+
+            ps.setString(1, table.getName());
+
+            try (ResultSet rs = ps.executeQuery()) {
+
+                if (!rs.next()) {
+                    handleFailure(mode,
+                            new TableNotFoundException("Table " + table.getName() + " not found"));
+                    return;
+                }
+
+                boolean rls = rs.getBoolean(1);
+
+                if (!rls) {
+                    handleFailure(mode,
+                            new RlsNotEnabledException("RLS not enabled for " + table.getName()));
+                }
+            }
+        }
+
+        if(table.getPolicies() != null && !table.getPolicies().isEmpty()) {
+            validatePolicies(conn, table, mode);
+        }
+    }
+
+    private void validatePolicies(Connection conn,
+                                  CoreRlsConfig.CoreTableConfig table,
+                                  ValidationMode mode) throws SQLException {
+
+        try (PreparedStatement ps = conn.prepareStatement(VALIDATION_QUERY_FOR_POLICIES)) {
+
+            ps.setString(1, table.getName());
+
+            try (ResultSet rs = ps.executeQuery()) {
+
+                List<String> existingPolicies = new java.util.ArrayList<>();
+
+                while (rs.next()) {
+                    existingPolicies.add(rs.getString("policyname"));
+                }
+
+                for (String expected : table.getPolicies()) {
+
+                    if (!existingPolicies.contains(expected)) {
+                        handleFailure(mode,
+                                new RlsPolicyNotFoundException(
+                                        "Policy '" + expected + "' missing for table " + table.getName()
+                                ));
+                    }
+                }
+            }
         }
     }
 
@@ -85,7 +128,7 @@ public class TableRlsValidator {
 
         switch (validationMode) {
             case STRICT -> throw exception;
-            case PERMISSIVE -> LOGGER.warn(exception.getMessage());
+            case PERMISSIVE -> LOGGER.error(exception.getMessage());
             case NONE -> {
                 // no-op
             }
