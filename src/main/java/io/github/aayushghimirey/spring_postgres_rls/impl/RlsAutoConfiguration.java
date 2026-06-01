@@ -1,6 +1,7 @@
 package io.github.aayushghimirey.spring_postgres_rls.impl;
 
 import io.github.aayushghimirey.spring_postgres_rls.core.CoreRlsConfig;
+import io.github.aayushghimirey.spring_postgres_rls.core.RlsSessionInjector;
 import io.github.aayushghimirey.spring_postgres_rls.core.TableRlsValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +42,11 @@ public class RlsAutoConfiguration {
         );
 
         return new TableRlsValidator(dataSource, coreRlsConfig);
+    }
+
+    @Bean
+    public RlsSessionInjector rlsSessionInjector(DataSource dataSource) {
+        return new RlsSessionInjector(dataSource);
     }
 
     @Bean
