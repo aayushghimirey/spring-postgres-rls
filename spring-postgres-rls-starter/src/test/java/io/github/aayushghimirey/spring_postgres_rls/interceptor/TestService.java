@@ -1,4 +1,4 @@
-package io.github.aayushghimirey.spring_postgres_rls.dummy;
+package io.github.aayushghimirey.spring_postgres_rls.interceptor;
 
 import io.github.aayushghimirey.spring_postgres_rls.annotations.UseRls;
 import org.springframework.stereotype.Service;

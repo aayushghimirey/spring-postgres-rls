@@ -1,10 +1,9 @@
-package io.github.aayushghimirey.spring_postgres_rls.dummy;
+package io.github.aayushghimirey.spring_postgres_rls.interceptor;
 
 import io.github.aayushghimirey.spring_postgres_rls.aop.RlsSessionInterceptor;
 import io.github.aayushghimirey.spring_postgres_rls.core.RlsSessionInjector;
 import io.github.aayushghimirey.spring_postgres_rls.properties.RlsProperties;
 import org.springframework.boot.SpringBootConfiguration;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;

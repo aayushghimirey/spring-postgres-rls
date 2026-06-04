@@ -1,20 +1,17 @@
-package io.github.aayushghimirey.spring_postgres_rls.dummy;
+package io.github.aayushghimirey.spring_postgres_rls.interceptor;
 
 import io.github.aayushghimirey.spring_postgres_rls.core.RlsContextHolder;
 import io.github.aayushghimirey.spring_postgres_rls.core.RlsSessionInjector;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
  @SpringBootTest(classes = TestConfig.class)
