@@ -5,6 +5,7 @@
 [![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.3.0-green.svg)](https://spring.io/projects/spring-boot)
 
 A lightweight Spring Boot library that provides **Row Level Security (RLS)** integration with PostgreSQL. This library enables deep-layer data isolation (ideal for multi-tenant applications) and validates your database security configurations during application startup to prevent silent security vulnerabilities.
+This is an upgraded version based on the original implementation from jpa-postgres-rls
 
 ---
 
